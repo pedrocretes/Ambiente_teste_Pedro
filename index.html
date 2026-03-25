@@ -733,11 +733,14 @@ function calCountTotal(data) {
 }
  
 function openCal(uid=null) {
+  console.log('openCal called, uid:', uid);
   calUid = uid;
   calData = getCalData(uid);
   calSelectedDay = null;
   renderCal();
-  document.getElementById('calOverlay').classList.add('open');
+  const overlay = document.getElementById('calOverlay');
+  console.log('overlay found:', !!overlay);
+  if (overlay) overlay.classList.add('open');
 }
  
 function closeCal() {
@@ -866,9 +869,7 @@ async function calSave() {
   }
 }
  
-document.getElementById('calOverlay').addEventListener('click',e=>{
-  if(e.target===document.getElementById('calOverlay')) closeCal();
-});
+ 
  
 function closeModal(){ document.getElementById('overlay').classList.remove('open'); modalKey=null; modalUid=null; }
  
@@ -966,6 +967,12 @@ window.addEventListener('DOMContentLoaded',()=>{
   const saved = localStorage.getItem('theme');
   const btn = document.getElementById('themeBtn');
   if (btn) btn.textContent = saved==='light' ? '🌙 Escuro' : '☀️ Claro';
+ 
+  // Cal overlay close on background click
+  const calOverlay = document.getElementById('calOverlay');
+  if (calOverlay) calOverlay.addEventListener('click',e=>{
+    if(e.target===calOverlay) closeCal();
+  });
 });
  
 sbClient.auth.getSession().then(({data:{session}})=>{ if(session) boot(session); });
