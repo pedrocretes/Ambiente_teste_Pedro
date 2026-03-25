@@ -554,11 +554,11 @@ function renderOwn(mkey) {
         ? lista.map((n,i)=>`<div class="rn-item"><span>${i+1}. ${n}</span></div>`).join('')
         : '<div class="rn-item" style="color:var(--text3)">Nenhuma reunião registrada</div>';
       const p3 = pct('reunioes', count, meta);
-      return `<div class="kpi"><span class="dot ${count===0?'dot-e':dotCls(p3)}"></span>
+      return `<div class="kpi" style="cursor:pointer" onclick="openCal()"><span class="dot ${count===0?'dot-e':dotCls(p3)}"></span>
         <div class="kpi-name">${d.name}</div>
         <div class="kpi-num">${count}</div>
         <div class="kpi-meta">${d.ml}</div>
-        <button class="kpi-edit" onclick="openCal()">Ver calendário</button>
+        <div style="margin-top:8px;font-size:.62rem;color:rgba(139,33,232,.8);font-weight:600">📅 Ver calendário</div>
       </div>`;
     }
     return `<div class="kpi"><span class="dot ${nd?'dot-e':dotCls(p2)}"></span><div class="kpi-name">${d.name}</div><div class="kpi-num">${nd?'—':d.fmt(val)}</div><div class="kpi-meta">${d.ml}</div><button class="kpi-edit" onclick="openPerfModal('${d.key}','${d.name}','${d.el}',${JSON.stringify(val)})">Editar</button></div>`;
