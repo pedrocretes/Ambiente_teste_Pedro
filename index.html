@@ -555,7 +555,7 @@ function renderOwn(mkey) {
         <div class="kpi-name">${d.name}</div>
         <div class="kpi-num">${count}</div>
         <div class="kpi-meta">${d.ml}</div>
-        <button style="margin-top:10px;width:100%;padding:7px;background:linear-gradient(135deg,#8B21E8,#C832D8);color:#fff;border:none;border-radius:8px;font-family:Sora,sans-serif;font-size:.72rem;font-weight:600;cursor:pointer" id="btnOpenCal">📅 Editar reuniões</button>
+        <button onclick="window.openCal()" style="margin-top:10px;width:100%;padding:7px;background:linear-gradient(135deg,#8B21E8,#C832D8);color:#fff;border:none;border-radius:8px;font-family:Sora,sans-serif;font-size:.72rem;font-weight:600;cursor:pointer">📅 Editar reuniões</button>
       </div>`;
     }
     return `<div class="kpi"><span class="dot ${nd?'dot-e':dotCls(p2)}"></span><div class="kpi-name">${d.name}</div><div class="kpi-num">${nd?'—':d.fmt(val)}</div><div class="kpi-meta">${d.ml}</div><button class="kpi-edit" onclick="openPerfModal('${d.key}','${d.name}','${d.el}',${JSON.stringify(val)})">Editar</button></div>`;
