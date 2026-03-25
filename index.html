@@ -547,14 +547,11 @@ function renderOwn(mkey) {
   const grid = KD.map(d=>{
     const val=mp[d.key], p2=pct(d.key,val,meta), nd=val===null||val===undefined;
     if (d.el==='reunioes_list') {
-      const nomes = mp.reunioes_nomes||'';
-      const lista = nomes ? nomes.split('|').filter(Boolean) : [];
-      const count = lista.length;
-      const tooltipHtml = lista.length>0
-        ? lista.map((n,i)=>`<div class="rn-item"><span>${i+1}. ${n}</span></div>`).join('')
-        : '<div class="rn-item" style="color:var(--text3)">Nenhuma reunião registrada</div>';
+      let calObj = {};
+      try { calObj = JSON.parse(mp.reunioes_nomes||'{}'); } catch(e) { calObj = {}; }
+      const count = Object.values(calObj).reduce((s,a)=>s+(Array.isArray(a)?a.length:0),0);
       const p3 = pct('reunioes', count, meta);
-      return `<div class="kpi" style="cursor:pointer" onclick="openCal()"><span class="dot ${count===0?'dot-e':dotCls(p3)}"></span>
+      return `<div class="kpi" style="cursor:pointer;user-select:none" onclick="window.openCal && window.openCal()"><span class="dot ${count===0?'dot-e':dotCls(p3)}"></span>
         <div class="kpi-name">${d.name}</div>
         <div class="kpi-num">${count}</div>
         <div class="kpi-meta">${d.ml}</div>
@@ -732,7 +729,7 @@ function calCountTotal(data) {
   return Object.values(data).reduce((sum,arr)=>sum+(Array.isArray(arr)?arr.length:0),0);
 }
  
-function openCal(uid=null) {
+window.openCal = function openCal(uid=null) {
   console.log('openCal called, uid:', uid);
   calUid = uid;
   calData = getCalData(uid);
@@ -743,7 +740,7 @@ function openCal(uid=null) {
   if (overlay) overlay.classList.add('open');
 }
  
-function closeCal() {
+window.closeCal = function closeCal() {
   document.getElementById('calOverlay').classList.remove('open');
   calSelectedDay = null;
 }
@@ -783,7 +780,7 @@ function renderCal() {
   renderCalDetail();
 }
  
-function calSelectDay(d) {
+window.calSelectDay = function calSelectDay(d) {
   calSelectedDay = d;
   renderCal();
   setTimeout(()=>document.getElementById('calAddInput')?.focus(),80);
@@ -806,7 +803,7 @@ function renderCalDetail() {
     : '<div style="font-size:.7rem;color:var(--text3);padding:4px 0">Nenhuma reunião neste dia</div>';
 }
  
-function calAddMeeting() {
+window.calAddMeeting = function calAddMeeting() {
   const input = document.getElementById('calAddInput');
   const val = (input?.value||'').trim();
   if (!val || !calSelectedDay) return;
@@ -818,7 +815,7 @@ function calAddMeeting() {
   setTimeout(()=>document.getElementById('calAddInput')?.focus(),60);
 }
  
-function calEditMeeting(idx, newVal) {
+window.calEditMeeting = function calEditMeeting(idx, newVal) {
   if (!calSelectedDay) return;
   const arr = calData[String(calSelectedDay)];
   if (!arr) return;
@@ -827,7 +824,7 @@ function calEditMeeting(idx, newVal) {
   calSave();
 }
  
-function calRemoveMeeting(idx) {
+window.calRemoveMeeting = function calRemoveMeeting() {
   if (!calSelectedDay) return;
   calData[String(calSelectedDay)].splice(idx,1);
   if (calData[String(calSelectedDay)].length===0) delete calData[String(calSelectedDay)];
