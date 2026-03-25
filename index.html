@@ -258,6 +258,33 @@ body{font-family:Sora,sans-serif;background:var(--bg);color:var(--text);min-heig
   </div>
 </div>
  
+<!-- Calendar Modal -->
+<div class="cal-overlay" id="calOverlay">
+  <div class="cal-modal" id="calModal">
+    <div class="cal-header">
+      <div class="cal-title" id="calTitle">Reuniões — Março</div>
+      <button class="cal-close" onclick="closeCal()">✕</button>
+    </div>
+    <div class="cal-summary" id="calSummary"></div>
+    <div class="cal-grid-wrap">
+      <div class="cal-weekdays">
+        <div class="cal-wd">Dom</div><div class="cal-wd">Seg</div><div class="cal-wd">Ter</div>
+        <div class="cal-wd">Qua</div><div class="cal-wd">Qui</div><div class="cal-wd">Sex</div>
+        <div class="cal-wd">Sáb</div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    <div class="cal-detail" id="calDetail" style="display:none">
+      <div class="cal-detail-title" id="calDetailTitle"></div>
+      <div id="calMeetingList"></div>
+      <div class="cal-add-row">
+        <input class="cal-add-input" id="calAddInput" placeholder="Título da reunião" onkeydown="if(event.key==='Enter'){event.preventDefault();calAddMeeting()}">
+        <button class="cal-add-confirm" onclick="calAddMeeting()">+ Adicionar</button>
+      </div>
+    </div>
+  </div>
+</div>
+ 
 <script>
 const SB_URL = 'https://ittuzrsamnixgwhenuvx.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0dHV6cnNhbW5peGd3aGVudXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0MTc5MzMsImV4cCI6MjA4OTk5MzkzM30.fKl7E0wdkf4-eds2atqVWH_A0Tg0o9pVByTnybZ-xhQ';
@@ -532,7 +559,7 @@ function renderOwn(mkey) {
         <div class="kpi-num">${count}</div>
         <div class="kpi-meta">${d.ml}</div>
         <div class="rn-tooltip">${tooltipHtml}</div>
-        <button class="kpi-edit" onclick="openReuniaoModal()">Editar</button>
+        <button class="kpi-edit" onclick="openCal()">Editar</button>
       </div>`;
     }
     return `<div class="kpi"><span class="dot ${nd?'dot-e':dotCls(p2)}"></span><div class="kpi-name">${d.name}</div><div class="kpi-num">${nd?'—':d.fmt(val)}</div><div class="kpi-meta">${d.ml}</div><button class="kpi-edit" onclick="openPerfModal('${d.key}','${d.name}','${d.el}',${JSON.stringify(val)})">Editar</button></div>`;
@@ -622,7 +649,7 @@ function renderSupTime(mkey) {
           </span>
         </div>
         <div class="cs-pct ${pctCls}">${gbl!==null?f1(gbl)+'%':'—'}</div>
-        <button class="edit-meta-btn" data-uid="${member.id}" onclick="openReuniaoModal(this.dataset.uid)">Reuniões</button>
+        <button class="edit-meta-btn" data-uid="${member.id}" onclick="openCal(this.dataset.uid)">Reuniões</button>
         <button class="edit-meta-btn" data-uid="${member.id}" data-uname="${(member.name||'').replace(/"/g,'&quot;')}" onclick="openMetaModal(this.dataset.uid,this.dataset.uname)">Editar metas</button>
       </div>
     </div>`;
@@ -685,70 +712,164 @@ function openMetaModal(uid, uname) {
   setTimeout(()=>document.getElementById('m_conversao')?.focus(),60);
 }
  
-function openReuniaoModal(uid=null) {
-  // uid = null means current user, otherwise it's a CS being edited by manager
-  const targetUid = uid || user.id;
-  const isOwnUser = !uid;
+ 
+ 
+// ── CALENDAR STATE ──────────────────────────
+let calUid = null;      // null = own user
+let calData = {};       // { "1": ["Meeting A","Meeting B"], "15": [...] }
+let calSelectedDay = null;
+ 
+function getCalData(uid) {
   const mes = MKEYS[mi];
-  let nomes;
-  if (isOwnUser) {
-    nomes = (uPerf[mes]?.reunioes_nomes||'').split('|').filter(Boolean);
-  } else {
-    const member = teamData.find(m=>m.id===uid);
-    nomes = ((member?.perf[mes]?.reunioes_nomes)||'').split('|').filter(Boolean);
-  }
- 
-  modalKey='reunioes_list';
-  modalUid = uid;
- 
-  document.getElementById('mEy').textContent   = MONTHS[mi];
-  document.getElementById('mTitle').textContent = 'Reuniões Realizadas';
- 
-  function renderList() {
-    const listHtml = nomes.length>0
-      ? nomes.map((n,i)=>`
-          <div class="rn-edit-item">
-            <span>${i+1}. ${n}</span>
-            <button onclick="removeReuniao(${i})" style="background:transparent;border:none;color:#f87171;cursor:pointer;font-size:.8rem;padding:2px 6px">✕</button>
-          </div>`).join('')
-      : '<div style="color:var(--text3);font-size:.72rem;padding:4px 0">Nenhuma reunião ainda</div>';
- 
-    document.getElementById('mFields').innerHTML = `
-      <div style="margin-bottom:12px">
-        <div style="display:flex;gap:8px;margin-bottom:10px">
-          <input id="rn-input" type="text" placeholder="Nome do cliente" style="flex:1;padding:8px 11px;border:1px solid var(--border);border-radius:8px;font-family:Sora,sans-serif;font-size:.85rem;color:var(--text);background:var(--input-bg);outline:none" onkeydown="if(event.key==='Enter'){event.preventDefault();addReuniao()}">
-          <button onclick="addReuniao()" style="padding:8px 16px;background:linear-gradient(135deg,#8B21E8,#C832D8);color:#fff;border:none;border-radius:8px;font-family:Sora,sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap">+ Adicionar</button>
-        </div>
-        <div id="rn-list" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto">${listHtml}</div>
-        <div style="margin-top:8px;font-size:.65rem;color:var(--text3)">${nomes.length} reunião(ões) registrada(s)</div>
-      </div>`;
- 
-    // expose nomes to window scope for add/remove functions
-    window._reuniaoNomes = nomes;
-    window._reuniaoUid   = targetUid;
-    window._reuniaoOwn   = isOwnUser;
-  }
- 
-  renderList();
-  document.getElementById('overlay').classList.add('open');
-  setTimeout(()=>document.getElementById('rn-input')?.focus(),80);
+  const isOwn = !uid || uid===user.id;
+  const src = isOwn ? uPerf : teamData.find(m=>m.id===uid)?.perf;
+  if (!src) return {};
+  const raw = src[mes]?.reunioes_nomes || '';
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch(e) { return {}; }
 }
  
-window.addReuniao = function() {
-  const input = document.getElementById('rn-input');
-  const val = (input?.value||'').trim();
-  if (!val) return;
-  window._reuniaoNomes.push(val);
-  input.value='';
-  openReuniaoModal(window._reuniaoUid===user.id?null:window._reuniaoUid);
-  setTimeout(()=>document.getElementById('rn-input')?.focus(),80);
-};
+function calCountTotal(data) {
+  return Object.values(data).reduce((sum,arr)=>sum+(Array.isArray(arr)?arr.length:0),0);
+}
  
-window.removeReuniao = function(idx) {
-  window._reuniaoNomes.splice(idx,1);
-  openReuniaoModal(window._reuniaoUid===user.id?null:window._reuniaoUid);
-  setTimeout(()=>document.getElementById('rn-input')?.focus(),80);
-};
+function openCal(uid=null) {
+  calUid = uid;
+  calData = getCalData(uid);
+  calSelectedDay = null;
+  renderCal();
+  document.getElementById('calOverlay').classList.add('open');
+}
+ 
+function closeCal() {
+  document.getElementById('calOverlay').classList.remove('open');
+  calSelectedDay = null;
+}
+ 
+function renderCal() {
+  const total = calCountTotal(calData);
+  const meta = getMeta(calUid ? teamData.find(m=>m.id===calUid)?.meta : uMeta, mi);
+  document.getElementById('calTitle').textContent = 'Reuniões — ' + MONTHS[mi];
+  document.getElementById('calSummary').textContent = total + ' reunião(ões) registrada(s) · Meta: ' + meta.reunioes;
+ 
+  // Build calendar grid
+  const year = new Date().getFullYear();
+  const monthIdx = mi;
+  const firstDay = new Date(year, monthIdx, 1).getDay();
+  const daysInMonth = new Date(year, monthIdx+1, 0).getDate();
+  const today = new Date();
+  const isCurrentMonth = today.getMonth()===monthIdx && today.getFullYear()===year;
+ 
+  let gridHtml = '';
+  // Empty cells before first day
+  for (let i=0;i<firstDay;i++) gridHtml += '<div class="cal-day empty"></div>';
+  // Day cells
+  for (let d=1;d<=daysInMonth;d++) {
+    const meetings = calData[String(d)] || [];
+    const isToday = isCurrentMonth && today.getDate()===d;
+    const hasMeetings = meetings.length>0;
+    const isSelected = calSelectedDay===d;
+    const dots = meetings.slice(0,6).map(()=>'<div class="cal-dot"></div>').join('');
+    gridHtml += `<div class="cal-day${isToday?' today':''}${hasMeetings?' has-meetings':''}${isSelected?' today':''}"
+      onclick="calSelectDay(${d})">
+      <div class="cal-day-num">${d}</div>
+      <div class="cal-dot-wrap">${dots}</div>
+      <button class="cal-add-btn" onclick="event.stopPropagation();calSelectDay(${d});setTimeout(()=>document.getElementById('calAddInput')?.focus(),80)">+</button>
+    </div>`;
+  }
+  document.getElementById('calGrid').innerHTML = gridHtml;
+  renderCalDetail();
+}
+ 
+function calSelectDay(d) {
+  calSelectedDay = d;
+  renderCal();
+  setTimeout(()=>document.getElementById('calAddInput')?.focus(),80);
+}
+ 
+function renderCalDetail() {
+  const detail = document.getElementById('calDetail');
+  if (!calSelectedDay) { detail.style.display='none'; return; }
+  detail.style.display='block';
+  const meetings = calData[String(calSelectedDay)] || [];
+  document.getElementById('calDetailTitle').textContent = 'Dia ' + calSelectedDay + ' de ' + MONTHS[mi];
+  document.getElementById('calMeetingList').innerHTML = meetings.length>0
+    ? meetings.map((name,i)=>`
+        <div class="cal-meeting-item">
+          <input class="cal-meeting-name" value="${name.replace(/"/g,'&quot;')}"
+            onchange="calEditMeeting(${i},this.value)"
+            onblur="calEditMeeting(${i},this.value)">
+          <button class="cal-meeting-del" onclick="calRemoveMeeting(${i})">✕</button>
+        </div>`).join('')
+    : '<div style="font-size:.7rem;color:var(--text3);padding:4px 0">Nenhuma reunião neste dia</div>';
+}
+ 
+function calAddMeeting() {
+  const input = document.getElementById('calAddInput');
+  const val = (input?.value||'').trim();
+  if (!val || !calSelectedDay) return;
+  if (!calData[String(calSelectedDay)]) calData[String(calSelectedDay)] = [];
+  calData[String(calSelectedDay)].push(val);
+  input.value = '';
+  calSave();
+  renderCal();
+  setTimeout(()=>document.getElementById('calAddInput')?.focus(),60);
+}
+ 
+function calEditMeeting(idx, newVal) {
+  if (!calSelectedDay) return;
+  const arr = calData[String(calSelectedDay)];
+  if (!arr) return;
+  const trimmed = newVal.trim();
+  if (trimmed) arr[idx] = trimmed;
+  calSave();
+}
+ 
+function calRemoveMeeting(idx) {
+  if (!calSelectedDay) return;
+  calData[String(calSelectedDay)].splice(idx,1);
+  if (calData[String(calSelectedDay)].length===0) delete calData[String(calSelectedDay)];
+  calSave();
+  renderCal();
+}
+ 
+async function calSave() {
+  const mes = MKEYS[mi];
+  const targetUid = calUid || user.id;
+  const isOwn = !calUid || calUid===user.id;
+  const nomesStr = JSON.stringify(calData);
+  const count = calCountTotal(calData);
+ 
+  const existing = isOwn ? (uPerf[mes]||{}) : (teamData.find(m=>m.id===targetUid)?.perf[mes]||{});
+  const row = {user_id:targetUid, mes};
+  ['conversao','churn','reengajamento','cobertura','nps'].forEach(k=>{
+    if (existing[k]!==null && existing[k]!==undefined) row[k]=existing[k];
+  });
+  row.reunioes = count;
+  row.reunioes_nomes = nomesStr;
+ 
+  const ok = await UPSERT('metricas', row);
+  if (ok) {
+    if (isOwn) {
+      uPerf[mes].reunioes = count;
+      uPerf[mes].reunioes_nomes = nomesStr;
+    } else {
+      const member = teamData.find(m=>m.id===targetUid);
+      if (member) {
+        member.perf[mes].reunioes = count;
+        member.perf[mes].reunioes_nomes = nomesStr;
+      }
+    }
+    render();
+    // Update summary
+    const meta = getMeta(isOwn ? uMeta : (teamData.find(m=>m.id===targetUid)?.meta), mi);
+    document.getElementById('calSummary').textContent = count + ' reunião(ões) registrada(s) · Meta: ' + meta.reunioes;
+  }
+}
+ 
+document.getElementById('calOverlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('calOverlay')) closeCal();
+});
  
 function closeModal(){ document.getElementById('overlay').classList.remove('open'); modalKey=null; modalUid=null; }
  
