@@ -208,7 +208,7 @@ body{font-family:Sora,sans-serif;background:var(--bg);color:var(--text);min-heig
 /* Day modal */
 .day-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);z-index:600;align-items:center;justify-content:center}
 .day-overlay.open{display:flex}
-.day-modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px;width:min(860px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 32px 64px rgba(0,0,0,.4)}
+.day-modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px;width:min(440px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 32px 64px rgba(0,0,0,.4)}
 .day-modal-eyebrow{font-size:.58rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;background:linear-gradient(135deg,#8B21E8,#C832D8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
 .day-modal-date{font-size:1.05rem;font-weight:500;color:var(--text);margin-bottom:18px}
 .day-close{float:right;background:transparent;border:none;color:var(--text3);font-size:1.1rem;cursor:pointer;margin-top:-4px;padding:0 4px}
@@ -296,7 +296,7 @@ body{font-family:Sora,sans-serif;background:var(--bg);color:var(--text);min-heig
  
 <!-- Day meetings modal -->
 <div class="day-overlay" id="dayOverlay">
-  <div class="day-modal">
+  <div class="day-modal" style="width:min(440px,95vw)">
     <button class="day-close" onclick="closeDayModal()">✕</button>
     <div class="day-modal-eyebrow">Reuniões</div>
     <div class="day-modal-date" id="dayModalDate"></div>
@@ -305,6 +305,30 @@ body{font-family:Sora,sans-serif;background:var(--bg);color:var(--text);min-heig
       <input class="day-add-input" id="dayAddInput" placeholder="Título da reunião"
         onkeydown="if(event.key==='Enter'){event.preventDefault();addDayMeeting()}">
       <button class="day-add-btn" onclick="addDayMeeting()">+ Adicionar</button>
+    </div>
+  </div>
+</div>
+ 
+<!-- Supervisor calendar modal -->
+<div class="day-overlay" id="supCalOverlay">
+  <div class="day-modal" style="width:min(860px,95vw)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+      <div>
+        <div class="day-modal-eyebrow">Calendário de Reuniões</div>
+        <div class="day-modal-date" id="supCalName"></div>
+      </div>
+      <button class="day-close" onclick="closeSupCal()">✕</button>
+    </div>
+    <div style="font-size:.7rem;color:#8B21E8;font-weight:600;margin-bottom:12px" id="supCalCount"></div>
+    <div style="overflow-x:auto">
+      <table class="cal-table" style="min-width:480px">
+        <thead><tr>
+          <th class="cal-th">Dom</th><th class="cal-th">Seg</th><th class="cal-th">Ter</th>
+          <th class="cal-th">Qua</th><th class="cal-th">Qui</th><th class="cal-th">Sex</th>
+          <th class="cal-th">Sáb</th>
+        </tr></thead>
+        <tbody id="supCalGrid"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -774,18 +798,26 @@ document.getElementById('overlay').addEventListener('click',e=>{ if(e.target===d
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
  
 // ── CALENDAR ─────────────────────────────────
-// Supervisor opens a CS's calendar in a modal
+// Supervisor opens a CS's calendar in a dedicated modal
 function openSupCal(uid) {
   _calUid = uid;
   _calDay = null;
   _calData = getCalDataFor(uid);
- 
   const member = teamData.find(m=>m.id===uid);
-  const name = member?.name || 'CS';
+  document.getElementById('supCalName').textContent = (member?.name||'CS') + ' — ' + MONTHS[mi];
+  renderSupCalGrid();
+  document.getElementById('supCalOverlay').classList.add('open');
+}
  
-  // Build calendar HTML inside day-modal
-  const overlay = document.getElementById('dayOverlay');
-  const modal = overlay.querySelector('.day-modal');
+function closeSupCal() {
+  document.getElementById('supCalOverlay').classList.remove('open');
+  _calUid = null;
+  _calDay = null;
+}
+ 
+function renderSupCalGrid() {
+  const total = calTotal(_calData);
+  document.getElementById('supCalCount').textContent = total + ' reunião(ões)';
  
   const year = new Date().getFullYear();
   const monthIdx = mi;
@@ -793,7 +825,6 @@ function openSupCal(uid) {
   const daysInMonth = new Date(year, monthIdx+1, 0).getDate();
   const today = new Date();
   const isCurMonth = today.getMonth()===monthIdx && today.getFullYear()===year;
-  const total = calTotal(_calData);
  
   let cells = [];
   for (let i=0;i<firstDay;i++) cells.push('<td class="cal-td empty"><div class="cal-day-inner"></div></td>');
@@ -803,7 +834,7 @@ function openSupCal(uid) {
     const hasMeet = meets.length > 0;
     const chips = meets.slice(0,3).map(m=>`<span class="cal-meet-chip">● ${m}</span>`).join('');
     const more = meets.length>3 ? `<span class="cal-meet-more">+${meets.length-3} mais</span>` : '';
-    cells.push(`<td class="cal-td${isToday?' today':''}${hasMeet?' has-meet':''}" onclick="openDayModal(${d})">
+    cells.push(`<td class="cal-td${isToday?' today':''}${hasMeet?' has-meet':''}" onclick="openSupDayModal(${d})">
       <div class="cal-day-inner">
         <div class="cal-day-num">${d}</div>
         ${chips}${more}
@@ -813,29 +844,18 @@ function openSupCal(uid) {
   while (cells.length % 7 !== 0) cells.push('<td class="cal-td empty"><div class="cal-day-inner"></div></td>');
   let rows = '';
   for (let i=0;i<cells.length;i+=7) rows += '<tr>' + cells.slice(i,i+7).join('') + '</tr>';
- 
-  modal.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
-      <div>
-        <div class="day-modal-eyebrow">Calendário de Reuniões</div>
-        <div class="day-modal-date">${name} — ${MONTHS[mi]}</div>
-      </div>
-      <button class="day-close" onclick="closeDayModal()">✕</button>
-    </div>
-    <div style="font-size:.7rem;color:#8B21E8;font-weight:600;margin-bottom:12px">${total} reunião(ões)</div>
-    <div style="overflow-x:auto">
-      <table class="cal-table" style="min-width:400px">
-        <thead><tr>
-          <th class="cal-th">Dom</th><th class="cal-th">Seg</th><th class="cal-th">Ter</th>
-          <th class="cal-th">Qua</th><th class="cal-th">Qui</th><th class="cal-th">Sex</th>
-          <th class="cal-th">Sáb</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
- 
-  overlay.classList.add('open');
+  document.getElementById('supCalGrid').innerHTML = rows;
 }
+ 
+// Supervisor clicks a day — reuses the day modal on top of the cal modal
+function openSupDayModal(day) {
+  _calDay = day;
+  document.getElementById('dayModalDate').textContent = day + ' de ' + MONTHS[mi];
+  renderDayMeetList();
+  document.getElementById('dayOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('dayAddInput')?.focus(), 60);
+}
+ 
  
  
 let _calUid = null;      // whose calendar (null = own)
@@ -996,6 +1016,8 @@ async function saveCal() {
 document.addEventListener('DOMContentLoaded', ()=>{
   const ov = document.getElementById('dayOverlay');
   if (ov) ov.addEventListener('click', e=>{ if(e.target===ov) closeDayModal(); });
+  const supOv = document.getElementById('supCalOverlay');
+  if (supOv) supOv.addEventListener('click', e=>{ if(e.target===supOv) closeSupCal(); });
 });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDayModal(); });
  
