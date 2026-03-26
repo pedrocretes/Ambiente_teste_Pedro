@@ -872,8 +872,30 @@ function getCalDataFor(uid) {
   try { return JSON.parse(raw); } catch(e) { return {}; }
 }
  
+function getOldOffset(uid) {
+  // Returns the numeric count that existed before calendar was used
+  // Stored as __offset in the JSON, set once on first calendar use
+  const mes = MKEYS[mi];
+  const isOwn = !uid || uid === user.id;
+  const src = isOwn ? uPerf : (teamData.find(m=>m.id===uid)?.perf);
+  if (!src) return 0;
+  const raw = src[mes]?.reunioes_nomes || '';
+  const oldNumeric = src[mes]?.reunioes || 0;
+  if (!raw || raw === '{}' || raw === '') {
+    // First time using calendar - offset is the existing numeric count
+    return oldNumeric;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    // If __offset is stored, use it; otherwise 0 (calendar was always the source)
+    return parsed.__offset || 0;
+  } catch(e) { return 0; }
+}
+ 
 function calTotal(data) {
-  return Object.values(data).reduce((s,a)=>s+(Array.isArray(a)?a.length:0), 0);
+  return Object.entries(data)
+    .filter(([k])=>k !== '__offset')
+    .reduce((s,[,a])=>s+(Array.isArray(a)?a.length:0), 0);
 }
  
 function renderCalendar(uid) {
@@ -988,24 +1010,26 @@ async function saveCal() {
   ['conversao','churn','reengajamento','cobertura','nps'].forEach(k=>{
     if (existing[k]!==null && existing[k]!==undefined) row[k] = existing[k];
   });
-  // If reunioes_nomes was empty/null before (user had old numeric count),
-  // the final count is: old numeric count + new calendar entries
-  const oldNumeric = existing.reunioes || 0;
-  const hadNoNames = !existing.reunioes_nomes || existing.reunioes_nomes === '' || existing.reunioes_nomes === '{}';
-  const finalCount = hadNoNames ? oldNumeric + count : count;
+  // Get the offset (numeric count before calendar was introduced)
+  // This is stored in __offset inside the JSON on first save
+  const offset = getOldOffset(targetUid);
+  // Store offset inside the data so it's never lost
+  _calData.__offset = offset;
+  const nomesStrWithOffset = JSON.stringify(_calData);
+  const finalCount = offset + count;
   row.reunioes = finalCount;
-  row.reunioes_nomes = nomesStr;
+  row.reunioes_nomes = nomesStrWithOffset;
  
   const ok = await UPSERT('metricas', row);
   if (ok) {
     if (isOwn) {
       uPerf[mes].reunioes = finalCount;
-      uPerf[mes].reunioes_nomes = nomesStr;
+      uPerf[mes].reunioes_nomes = nomesStrWithOffset;
     } else {
       const member = teamData.find(m=>m.id===targetUid);
       if (member) {
         member.perf[mes].reunioes = finalCount;
-        member.perf[mes].reunioes_nomes = nomesStr;
+        member.perf[mes].reunioes_nomes = nomesStrWithOffset;
       }
     }
     renderCalendar(_calUid);
