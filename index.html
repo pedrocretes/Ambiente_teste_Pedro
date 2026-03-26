@@ -262,7 +262,7 @@ body{font-family:Sora,sans-serif;background:var(--bg);color:var(--text);min-heig
 <div class="day-overlay" id="dayOverlay">
   <div class="day-modal">
     <button class="day-close" onclick="closeDayModal()">✕</button>
-    <div class="day-modal-title">Reuniões</div>
+    <div class="day-modal-eyebrow">Reuniões</div>
     <div class="day-modal-date" id="dayModalDate"></div>
     <div id="dayMeetList"></div>
     <div class="day-add-row">
@@ -549,16 +549,18 @@ function renderOwn(mkey) {
     </div>
     <div class="grid">${grid}</div>
     <div class="cal-wrap">
-      <div class="cal-top">
-        <div class="cal-label">📅 Calendário de Reuniões — ${MONTHS[mi]}</div>
-        <div class="cal-count" id="calCountLabel"></div>
+      <div class="cal-header">
+        <div class="cal-header-title">Calendário de Reuniões — ${MONTHS[mi]}</div>
+        <div class="cal-header-count" id="calCountLabel"></div>
       </div>
-      <div class="cal-weekdays">
-        <div class="cal-wd">Dom</div><div class="cal-wd">Seg</div><div class="cal-wd">Ter</div>
-        <div class="cal-wd">Qua</div><div class="cal-wd">Qui</div><div class="cal-wd">Sex</div>
-        <div class="cal-wd">Sáb</div>
-      </div>
-      <div class="cal-days" id="calDaysGrid"></div>
+      <table class="cal-table">
+        <thead><tr>
+          <th class="cal-th">Dom</th><th class="cal-th">Seg</th><th class="cal-th">Ter</th>
+          <th class="cal-th">Qua</th><th class="cal-th">Qui</th><th class="cal-th">Sex</th>
+          <th class="cal-th">Sáb</th>
+        </tr></thead>
+        <tbody id="calDaysGrid"></tbody>
+      </table>
     </div>`;
  
   // Render calendar after DOM update
@@ -755,10 +757,10 @@ function calTotal(data) {
 }
  
 function renderCalendar(uid) {
-  _calUid = uid || null;
+  _calUid = uid !== undefined ? uid : null;
   _calData = getCalDataFor(_calUid);
-  const wrap = document.getElementById('calWrap');
-  if (!wrap) return;
+  const grid = document.getElementById('calDaysGrid');
+  if (!grid) return;
  
   const year = new Date().getFullYear();
   const monthIdx = mi;
@@ -768,32 +770,40 @@ function renderCalendar(uid) {
   const isCurMonth = today.getMonth()===monthIdx && today.getFullYear()===year;
   const total = calTotal(_calData);
  
-  // Update count
+  // Update count badge
   const countEl = document.getElementById('calCountLabel');
   if (countEl) countEl.textContent = total + ' reunião(ões)';
  
-  // Build grid
-  let grid = '';
-  for (let i=0;i<firstDay;i++) grid += '<div class="cal-cell empty"></div>';
+  // Build weeks as table rows
+  let cells = [];
+  for (let i=0;i<firstDay;i++) cells.push('<td class="cal-td empty"><div class="cal-day-inner"></div></td>');
   for (let d=1;d<=daysInMonth;d++) {
     const meets = _calData[String(d)] || [];
     const isToday = isCurMonth && today.getDate()===d;
     const hasMeet = meets.length > 0;
-    const dots = meets.slice(0,8).map(()=>'<div class="cal-dot"></div>').join('');
-    grid += `<div class="cal-cell${isToday?' today':''}${hasMeet?' has-meet':''}"
-      onclick="openDayModal(${d})">
-      <div class="cal-cell-num">${d}</div>
-      <div class="cal-dots">${dots}</div>
-    </div>`;
+    const chips = meets.slice(0,3).map(m=>`<span class="cal-meet-chip">● ${m}</span>`).join('');
+    const more = meets.length>3 ? `<span class="cal-meet-more">+${meets.length-3} mais</span>` : '';
+    cells.push(`<td class="cal-td${isToday?' today':''}${hasMeet?' has-meet':''}" onclick="openDayModal(${d})">
+      <div class="cal-day-inner">
+        <div class="cal-day-num">${d}</div>
+        ${chips}${more}
+      </div>
+    </td>`);
   }
-  document.getElementById('calDaysGrid').innerHTML = grid;
+  // Pad to complete last row
+  while (cells.length % 7 !== 0) cells.push('<td class="cal-td empty"><div class="cal-day-inner"></div></td>');
+ 
+  // Split into rows
+  let rows = '';
+  for (let i=0;i<cells.length;i+=7) {
+    rows += '<tr>' + cells.slice(i,i+7).join('') + '</tr>';
+  }
+  grid.innerHTML = rows;
 }
  
 function openDayModal(day) {
   _calDay = day;
-  const mes = MKEYS[mi];
-  const monthNames = MONTHS;
-  document.getElementById('dayModalDate').textContent = day + ' de ' + monthNames[mi];
+  document.getElementById('dayModalDate').textContent = day + ' de ' + MONTHS[mi];
   renderDayMeetList();
   document.getElementById('dayOverlay').classList.add('open');
   setTimeout(()=>document.getElementById('dayAddInput')?.focus(), 60);
@@ -809,12 +819,13 @@ function renderDayMeetList() {
   document.getElementById('dayMeetList').innerHTML = meets.length > 0
     ? meets.map((name,i) => `
         <div class="day-meet-item">
+          <div class="day-meet-bullet"></div>
           <input class="day-meet-input" value="${name.replace(/"/g,'&quot;')}"
             onchange="editDayMeeting(${i},this.value)"
             onblur="editDayMeeting(${i},this.value)">
           <button class="day-meet-del" onclick="removeDayMeeting(${i})">✕</button>
         </div>`).join('')
-    : '<div class="day-empty">Nenhuma reunião neste dia ainda.</div>';
+    : '<div class="day-empty-msg">Nenhuma reunião neste dia ainda.</div>';
 }
  
 function addDayMeeting() {
