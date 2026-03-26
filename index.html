@@ -1011,12 +1011,16 @@ async function saveCal() {
     if (existing[k]!==null && existing[k]!==undefined) row[k] = existing[k];
   });
   // Get the offset (numeric count before calendar was introduced)
-  // This is stored in __offset inside the JSON on first save
   const offset = getOldOffset(targetUid);
-  // Store offset inside the data so it's never lost
   _calData.__offset = offset;
   const nomesStrWithOffset = JSON.stringify(_calData);
   const finalCount = offset + count;
+  console.log('saveCal debug:', {
+    offset, count, finalCount,
+    existing_reunioes: existing.reunioes,
+    existing_nomes_raw: existing.reunioes_nomes?.substring(0,80),
+    hadNoNames: !existing.reunioes_nomes || existing.reunioes_nomes === '' || existing.reunioes_nomes === '{}'
+  });
   row.reunioes = finalCount;
   row.reunioes_nomes = nomesStrWithOffset;
  
