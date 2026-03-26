@@ -873,22 +873,31 @@ function getCalDataFor(uid) {
 }
  
 function getOldOffset(uid) {
-  // Returns the numeric count that existed before calendar was used
-  // Stored as __offset in the JSON, set once on first calendar use
+  // Returns the numeric count that existed before calendar was introduced
   const mes = MKEYS[mi];
   const isOwn = !uid || uid === user.id;
   const src = isOwn ? uPerf : (teamData.find(m=>m.id===uid)?.perf);
   if (!src) return 0;
   const raw = src[mes]?.reunioes_nomes || '';
   const oldNumeric = src[mes]?.reunioes || 0;
-  if (!raw || raw === '{}' || raw === '') {
-    // First time using calendar - offset is the existing numeric count
-    return oldNumeric;
-  }
+ 
+  // No JSON yet - first time ever using calendar
+  if (!raw || raw === '{}' || raw === '') return oldNumeric;
+ 
   try {
     const parsed = JSON.parse(raw);
-    // If __offset is stored, use it; otherwise 0 (calendar was always the source)
-    return parsed.__offset || 0;
+    const calCount = Object.entries(parsed)
+      .filter(([k])=>k !== '__offset')
+      .reduce((s,[,a])=>s+(Array.isArray(a)?a.length:0), 0);
+ 
+    // If __offset was previously stored, use it
+    if (typeof parsed.__offset === 'number' && parsed.__offset > 0) {
+      return parsed.__offset;
+    }
+    // __offset is 0 or missing - check if oldNumeric > calCount
+    // meaning there were reunioes before calendar was introduced
+    if (oldNumeric > calCount) return oldNumeric - calCount;
+    return 0;
   } catch(e) { return 0; }
 }
  
