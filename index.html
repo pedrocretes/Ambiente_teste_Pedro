@@ -208,7 +208,7 @@ body{font-family:Sora,sans-serif;background:var(--bg);color:var(--text);min-heig
 /* Day modal */
 .day-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);z-index:600;align-items:center;justify-content:center}
 .day-overlay.open{display:flex}
-.day-modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px;width:400px;max-height:80vh;overflow-y:auto;box-shadow:0 32px 64px rgba(0,0,0,.4)}
+.day-modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px;width:min(860px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 32px 64px rgba(0,0,0,.4)}
 .day-modal-eyebrow{font-size:.58rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;background:linear-gradient(135deg,#8B21E8,#C832D8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
 .day-modal-date{font-size:1.05rem;font-weight:500;color:var(--text);margin-bottom:18px}
 .day-close{float:right;background:transparent;border:none;color:var(--text3);font-size:1.1rem;cursor:pointer;margin-top:-4px;padding:0 4px}
@@ -660,7 +660,7 @@ function renderSupTime(mkey) {
     }).join('');
     return `<div class="cs-row">
       <div class="cs-left"><div class="cs-av">${initials(member.name)}</div><div><div class="cs-name">${member.name||'—'}</div><div class="cs-email">${member.email||''}</div></div></div>
-      <div class="cs-right"><div class="chips">${chips}</div><div class="cs-pct ${pctCls}">${gbl!==null?f1(gbl)+'%':'—'}</div><button class="edit-meta-btn" data-uid="${member.id}" data-uname="${(member.name||'').replace(/"/g,'&quot;')}" onclick="openMetaModal(this.dataset.uid,this.dataset.uname)">Editar metas</button></div>
+      <div class="cs-right"><div class="chips">${chips}</div><div class="cs-pct ${pctCls}">${gbl!==null?f1(gbl)+'%':'—'}</div><button class="edit-meta-btn" data-uid="${member.id}" onclick="openSupCal(this.dataset.uid)">📅 Calendário</button><button class="edit-meta-btn" data-uid="${member.id}" data-uname="${(member.name||'').replace(/"/g,'&quot;')}" onclick="openMetaModal(this.dataset.uid,this.dataset.uname)">Editar metas</button></div>
     </div>`;
   }).join('') : '<div class="empty-state">Nenhum colaborador encontrado</div>';
  
@@ -774,6 +774,70 @@ document.getElementById('overlay').addEventListener('click',e=>{ if(e.target===d
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
  
 // ── CALENDAR ─────────────────────────────────
+// Supervisor opens a CS's calendar in a modal
+function openSupCal(uid) {
+  _calUid = uid;
+  _calDay = null;
+  _calData = getCalDataFor(uid);
+ 
+  const member = teamData.find(m=>m.id===uid);
+  const name = member?.name || 'CS';
+ 
+  // Build calendar HTML inside day-modal
+  const overlay = document.getElementById('dayOverlay');
+  const modal = overlay.querySelector('.day-modal');
+ 
+  const year = new Date().getFullYear();
+  const monthIdx = mi;
+  const firstDay = new Date(year, monthIdx, 1).getDay();
+  const daysInMonth = new Date(year, monthIdx+1, 0).getDate();
+  const today = new Date();
+  const isCurMonth = today.getMonth()===monthIdx && today.getFullYear()===year;
+  const total = calTotal(_calData);
+ 
+  let cells = [];
+  for (let i=0;i<firstDay;i++) cells.push('<td class="cal-td empty"><div class="cal-day-inner"></div></td>');
+  for (let d=1;d<=daysInMonth;d++) {
+    const meets = _calData[String(d)] || [];
+    const isToday = isCurMonth && today.getDate()===d;
+    const hasMeet = meets.length > 0;
+    const chips = meets.slice(0,3).map(m=>`<span class="cal-meet-chip">● ${m}</span>`).join('');
+    const more = meets.length>3 ? `<span class="cal-meet-more">+${meets.length-3} mais</span>` : '';
+    cells.push(`<td class="cal-td${isToday?' today':''}${hasMeet?' has-meet':''}" onclick="openDayModal(${d})">
+      <div class="cal-day-inner">
+        <div class="cal-day-num">${d}</div>
+        ${chips}${more}
+      </div>
+    </td>`);
+  }
+  while (cells.length % 7 !== 0) cells.push('<td class="cal-td empty"><div class="cal-day-inner"></div></td>');
+  let rows = '';
+  for (let i=0;i<cells.length;i+=7) rows += '<tr>' + cells.slice(i,i+7).join('') + '</tr>';
+ 
+  modal.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+      <div>
+        <div class="day-modal-eyebrow">Calendário de Reuniões</div>
+        <div class="day-modal-date">${name} — ${MONTHS[mi]}</div>
+      </div>
+      <button class="day-close" onclick="closeDayModal()">✕</button>
+    </div>
+    <div style="font-size:.7rem;color:#8B21E8;font-weight:600;margin-bottom:12px">${total} reunião(ões)</div>
+    <div style="overflow-x:auto">
+      <table class="cal-table" style="min-width:400px">
+        <thead><tr>
+          <th class="cal-th">Dom</th><th class="cal-th">Seg</th><th class="cal-th">Ter</th>
+          <th class="cal-th">Qua</th><th class="cal-th">Qui</th><th class="cal-th">Sex</th>
+          <th class="cal-th">Sáb</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+ 
+  overlay.classList.add('open');
+}
+ 
+ 
 let _calUid = null;      // whose calendar (null = own)
 let _calDay  = null;     // selected day number
 let _calData = {};       // { "5": ["Meet A", "Meet B"], ... }
