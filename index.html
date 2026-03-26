@@ -988,26 +988,27 @@ async function saveCal() {
   ['conversao','churn','reengajamento','cobertura','nps'].forEach(k=>{
     if (existing[k]!==null && existing[k]!==undefined) row[k] = existing[k];
   });
-  row.reunioes = count;
+  // If reunioes_nomes was empty/null before (user had old numeric count),
+  // the final count is: old numeric count + new calendar entries
+  const oldNumeric = existing.reunioes || 0;
+  const hadNoNames = !existing.reunioes_nomes || existing.reunioes_nomes === '' || existing.reunioes_nomes === '{}';
+  const finalCount = hadNoNames ? oldNumeric + count : count;
+  row.reunioes = finalCount;
   row.reunioes_nomes = nomesStr;
  
   const ok = await UPSERT('metricas', row);
   if (ok) {
     if (isOwn) {
-      uPerf[mes].reunioes = count;
+      uPerf[mes].reunioes = finalCount;
       uPerf[mes].reunioes_nomes = nomesStr;
     } else {
       const member = teamData.find(m=>m.id===targetUid);
       if (member) {
-        member.perf[mes].reunioes = count;
+        member.perf[mes].reunioes = finalCount;
         member.perf[mes].reunioes_nomes = nomesStr;
       }
     }
-    // Update KPI count without full re-render
-    const kpiEl = document.getElementById('reunioesCount');
-    if (kpiEl) kpiEl.textContent = count;
     renderCalendar(_calUid);
-    // Also update global score
     render();
   }
 }
