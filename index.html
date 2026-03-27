@@ -596,16 +596,16 @@ function renderOwn(mkey) {
   ];
   const grid = KD.map(d=>{
     const val=mp[d.key], p2=pct(d.key,val,meta), nd=val===null||val===undefined;
-    let paceHtml = '';
+    let paceLine = '';
     if (d.pace && mi === new Date().getMonth()) {
       const rpd = reunioesPorDia(nd?0:val, meta.reunioes);
       if (rpd !== null) {
-        paceHtml = `<div class="kpi-pace">📈 ${rpd.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:2})} reuniões/dia</div>`;
+        paceLine = ` · 📈 ${rpd.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:2})}/dia`;
       } else if (!nd && val >= meta.reunioes) {
-        paceHtml = `<div class="kpi-pace kpi-pace-ok">✅ Meta batida!</div>`;
+        paceLine = ` · ✅ Meta batida!`;
       }
     }
-    return `<div class="kpi"><span class="dot ${nd?'dot-e':dotCls(p2)}"></span><div class="kpi-name">${d.name}</div><div class="kpi-num">${nd?'—':d.fmt(val)}</div><div class="kpi-meta">${d.ml}</div>${paceHtml}<button class="kpi-edit" onclick="openPerfModal('${d.key}','${d.name}','${d.el}',${JSON.stringify(val)})">Editar</button></div>`;
+    return `<div class="kpi"><span class="dot ${nd?'dot-e':dotCls(p2)}"></span><div class="kpi-name">${d.name}</div><div class="kpi-num">${nd?'—':d.fmt(val)}</div><div class="kpi-meta">${d.ml}${paceLine}</div><button class="kpi-edit" onclick="openPerfModal('${d.key}','${d.name}','${d.el}',${JSON.stringify(val)})">Editar</button></div>`;
   }).join('');
  
   document.getElementById('ownView').innerHTML = `
