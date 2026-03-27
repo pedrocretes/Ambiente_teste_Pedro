@@ -185,6 +185,8 @@ body{font-family:Sora,sans-serif;background:var(--bg);color:var(--text);min-heig
 .btn-save{flex:1;padding:9px;background:linear-gradient(135deg,#8B21E8,#C832D8);color:#fff;border:none;border-radius:8px;font-family:Sora,sans-serif;font-size:.78rem;font-weight:600;cursor:pointer}
 .btn-save:disabled{opacity:.4;cursor:default}
 .btn-cancel{padding:9px 15px;background:transparent;color:var(--text4);border:1px solid var(--border);border-radius:8px;font-family:Sora,sans-serif;font-size:.78rem;cursor:pointer}
+.kpi-pace{font-size:.62rem;color:#8B21E8;font-weight:600;margin-top:6px;padding:3px 8px;background:rgba(139,33,232,.1);border-radius:6px;display:inline-block}
+.kpi-pace-ok{color:#34d399;background:rgba(52,211,153,.1)}
 .empty-state{padding:40px;text-align:center;font-size:.7rem;color:var(--text3);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
  
 /* ── NOTION-STYLE CALENDAR ── */
@@ -594,7 +596,16 @@ function renderOwn(mkey) {
   ];
   const grid = KD.map(d=>{
     const val=mp[d.key], p2=pct(d.key,val,meta), nd=val===null||val===undefined;
-    return `<div class="kpi"><span class="dot ${nd?'dot-e':dotCls(p2)}"></span><div class="kpi-name">${d.name}</div><div class="kpi-num">${nd?'—':d.fmt(val)}</div><div class="kpi-meta">${d.ml}</div><button class="kpi-edit" onclick="openPerfModal('${d.key}','${d.name}','${d.el}',${JSON.stringify(val)})">Editar</button></div>`;
+    let paceHtml = '';
+    if (d.pace && mi === new Date().getMonth()) {
+      const rpd = reunioesPorDia(nd?0:val, meta.reunioes);
+      if (rpd !== null) {
+        paceHtml = `<div class="kpi-pace">📈 ${rpd.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:2})} reuniões/dia</div>`;
+      } else if (!nd && val >= meta.reunioes) {
+        paceHtml = `<div class="kpi-pace kpi-pace-ok">✅ Meta batida!</div>`;
+      }
+    }
+    return `<div class="kpi"><span class="dot ${nd?'dot-e':dotCls(p2)}"></span><div class="kpi-name">${d.name}</div><div class="kpi-num">${nd?'—':d.fmt(val)}</div><div class="kpi-meta">${d.ml}</div>${paceHtml}<button class="kpi-edit" onclick="openPerfModal('${d.key}','${d.name}','${d.el}',${JSON.stringify(val)})">Editar</button></div>`;
   }).join('');
  
   document.getElementById('ownView').innerHTML = `
@@ -1058,6 +1069,30 @@ document.addEventListener('DOMContentLoaded', ()=>{
   if (supOv) supOv.addEventListener('click', e=>{ if(e.target===supOv) closeSupCal(); });
 });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDayModal(); });
+ 
+// ── UTILS ────────────────────────────────────
+function diasUteisRestantes() {
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = hoje.getMonth();
+  // Only relevant for current month
+  if (mi !== mes) return 0;
+  const ultimo = new Date(ano, mes+1, 0).getDate();
+  let uteis = 0;
+  for (let d = hoje.getDate(); d <= ultimo; d++) {
+    const dow = new Date(ano, mes, d).getDay();
+    if (dow !== 0 && dow !== 6) uteis++;
+  }
+  return uteis;
+}
+ 
+function reunioesPorDia(realizadas, meta) {
+  const faltam = meta - realizadas;
+  if (faltam <= 0) return null; // já bateu a meta
+  const dias = diasUteisRestantes();
+  if (dias <= 0) return null;
+  return faltam / dias;
+}
  
 // ── THEME ────────────────────────────────────
 function toggleTheme() {
