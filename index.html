@@ -185,8 +185,8 @@ body{font-family:Sora,sans-serif;background:var(--bg);color:var(--text);min-heig
 .btn-save{flex:1;padding:9px;background:linear-gradient(135deg,#8B21E8,#C832D8);color:#fff;border:none;border-radius:8px;font-family:Sora,sans-serif;font-size:.78rem;font-weight:600;cursor:pointer}
 .btn-save:disabled{opacity:.4;cursor:default}
 .btn-cancel{padding:9px 15px;background:transparent;color:var(--text4);border:1px solid var(--border);border-radius:8px;font-family:Sora,sans-serif;font-size:.78rem;cursor:pointer}
-.kpi-pace{font-size:.62rem;color:#8B21E8;font-weight:600;margin-top:6px;padding:3px 8px;background:rgba(139,33,232,.1);border-radius:6px;display:inline-block}
-.kpi-pace-ok{color:#34d399;background:rgba(52,211,153,.1)}
+.kpi-pace-corner{position:absolute;bottom:10px;right:12px;font-size:.58rem;color:#8B21E8;font-weight:600;background:rgba(139,33,232,.12);padding:2px 7px;border-radius:5px;pointer-events:none}
+.kpi-pace-ok{color:#34d399!important;background:rgba(52,211,153,.1)!important}
 .empty-state{padding:40px;text-align:center;font-size:.7rem;color:var(--text3);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
  
 /* ── NOTION-STYLE CALENDAR ── */
@@ -596,16 +596,16 @@ function renderOwn(mkey) {
   ];
   const grid = KD.map(d=>{
     const val=mp[d.key], p2=pct(d.key,val,meta), nd=val===null||val===undefined;
-    let paceLine = '';
+    let paceEl = '';
     if (d.pace && mi === new Date().getMonth()) {
       const rpd = reunioesPorDia(nd?0:val, meta.reunioes);
       if (rpd !== null) {
-        paceLine = ` · 📈 ${rpd.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:2})}/dia`;
+        paceEl = `<div class="kpi-pace-corner">📈 ${rpd.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:2})}/dia</div>`;
       } else if (!nd && val >= meta.reunioes) {
-        paceLine = ` · ✅ Meta batida!`;
+        paceEl = `<div class="kpi-pace-corner kpi-pace-ok">✅ Meta!</div>`;
       }
     }
-    return `<div class="kpi"><span class="dot ${nd?'dot-e':dotCls(p2)}"></span><div class="kpi-name">${d.name}</div><div class="kpi-num">${nd?'—':d.fmt(val)}</div><div class="kpi-meta">${d.ml}${paceLine}</div><button class="kpi-edit" onclick="openPerfModal('${d.key}','${d.name}','${d.el}',${JSON.stringify(val)})">Editar</button></div>`;
+    return `<div class="kpi"><span class="dot ${nd?'dot-e':dotCls(p2)}"></span><div class="kpi-name">${d.name}</div><div class="kpi-num">${nd?'—':d.fmt(val)}</div><div class="kpi-meta">${d.ml}</div>${paceEl}<button class="kpi-edit" onclick="openPerfModal('${d.key}','${d.name}','${d.el}',${JSON.stringify(val)})">Editar</button></div>`;
   }).join('');
  
   document.getElementById('ownView').innerHTML = `
