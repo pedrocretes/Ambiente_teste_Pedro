@@ -591,7 +591,7 @@ function renderOwn(mkey) {
     {key:'churn',name:'Churn do Período',fmt:v=>v+'%',ml:`Meta ≤ ${meta.churn}%`,el:'Churn realizado (%)'},
     {key:'reengajamento',name:'Taxa de Reengajamento',fmt:v=>v+'%',ml:`Meta ${meta.reengajamento}%`,el:'Realizado (%)'},
     {key:'cobertura',name:'Cobertura de Carteira',fmt:v=>v+'%',ml:`Meta ${meta.cobertura}%`,el:'Clientes contatados (%)'},
-    {key:'reunioes',name:'Reuniões Realizadas',fmt:v=>`<span id="reunioesCount">${v}</span>`,ml:`Meta ${meta.reunioes}`,el:'Reuniões realizadas'},
+    {key:'reunioes',name:'Reuniões Realizadas',fmt:v=>String(v),ml:`Meta ${meta.reunioes}`,el:'Reuniões realizadas',pace:true},
     {key:'nps',name:'NPS',fmt:v=>String(v),ml:`Meta ${meta.nps}`,el:'NPS alcançado'},
   ];
   const grid = KD.map(d=>{
